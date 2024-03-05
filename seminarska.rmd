@@ -1,0 +1,65 @@
+library(R2BayesX)
+
+ns <- 200
+N <- 100
+beta <- c(10, 0.5, 0, 2)
+
+
+
+
+simulate_data <- function(N = 100, beta = c(1, 0.5, -0.5, 0, 0), intercept = 2, variance = 1, distribution = "normal") {
+  X <- matrix(rnorm(N * length(beta)), N, length(beta))
+
+  if (distribution == "normal") {
+    epsilon <- rnorm(N, 0, sqrt(variance))
+  } else if (distribution == "chi-squared") {
+    epsilon <- rchisq(N, df = 1) - 1 # Centriramo, da ima povprečje 0
+    epsilon <- epsilon * sqrt(variance / var(epsilon)) # Skaliramo na izbrano varianco
+  }
+  
+  Y <- X %*% matrix(beta) + intercept + epsilon
+  list(X = X, Y = Y)
+}
+
+
+library(R2BayesX)
+
+# Assuming simulate_data function is defined as above
+
+run_simulation_bayesx <- function(reps = 100, N = 100, beta = c(1, 0.5, -0.5, 0, 0), intercept = 2, variance = 1, distribution = "normal") {
+  results <- list(frequentist = list(), bayesian = list())
+  
+  for (i in 1:reps) {
+    simulated_data <- simulate_data(N, beta, intercept, variance, distribution)
+    Y <- simulated_data$Y
+    X <- simulated_data$X
+    data <- data.frame(Y = Y, X1 = X[,1], X2 = X[,2], X3 = X[,3], X4 = X[,4])
+    
+    # Frequentist approach using lm()
+    lm_model <- lm(Y ~ ., data = data)
+    results$frequentist[[i]] <- summary(lm_model)$coefficients
+    
+    # Bayesian approach using BayesX
+    # Note: BayesX syntax for specifying models is different, and it requires data frames or formulae
+    # Here, we fit a similar model as with lm(), but using BayesX
+    bayesx_model <- bayesx(Y ~ ., data = data)
+    
+    # Extracting coefficients from BayesX model
+    # The bayesx output can be accessed with function `summary.bayesx`
+    bx_summary <- summary(bayesx_model)
+    
+    # Assuming we want to extract estimated coefficients or similar summary stats
+    # Note: Adjust the following line according to the specific output you're interested in from BayesX
+    results$bayesian[[i]] <- bx_summary$fixed.effects$mean
+    
+    # Note: BayesX provides a wide range of outputs and diagnostics, the extraction of which 
+    # may vary depending on the specifics of the model and desired results.
+  }
+  
+  results
+}
+
+# Running the simulation
+simulation_results <- run_simulation_bayesx(reps=100)
+
+
